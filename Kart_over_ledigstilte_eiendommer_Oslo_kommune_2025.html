@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oslo kommunes tomme eiendommer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f0f0f0;
+  }
+
+  /* Move zoom controls below header */
+  .leaflet-top.leaflet-left {
+    top: 60px;
+  }
+
+  #map {
+    width: 100%;
+    height: 100vh;
+  }
+
+  /* Header bar */
+  .map-header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    background: rgba(26, 26, 46, 0.92);
+    backdrop-filter: blur(8px);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+  }
+
+  .map-header h1 {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .map-header .subtitle {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 400;
+    margin-left: 12px;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 20px;
+  }
+
+  .stat-item {
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+  }
+
+  .stat-item strong {
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    margin-right: 4px;
+  }
+
+  .header-source {
+    color: rgba(255,255,255,0.5);
+    font-size: 11px;
+    max-width: 320px;
+    line-height: 1.3;
+  }
+
+  /* Legend */
+  .legend-container {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    padding: 16px 20px;
+    max-width: 280px;
+    font-size: 13px;
+    color: #2D3436;
+    transition: all 0.3s ease;
+  }
+
+  .legend-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 0;
+  }
+
+  .legend-toggle h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1A1A2E;
+  }
+
+  .legend-toggle .arrow {
+    transition: transform 0.3s ease;
+    font-size: 12px;
+    color: #636E72;
+  }
+
+  .legend-toggle .arrow.open { transform: rotate(180deg); }
+
+  .legend-content {
+    overflow: hidden;
+    transition: max-height 0.4s ease, margin-top 0.3s ease;
+    max-height: 0;
+    margin-top: 0;
+  }
+
+  .legend-content.open {
+    max-height: 500px;
+    margin-top: 14px;
+  }
+
+  .legend-section {
+    margin-bottom: 14px;
+  }
+
+  .legend-section:last-child { margin-bottom: 0; }
+
+  .legend-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #636E72;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #eee;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 4px;
+  }
+
+  .legend-item:hover { opacity: 0.7; }
+
+  .legend-item.dimmed { opacity: 0.25; }
+
+  .legend-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .legend-label {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+
+
+
+
+  /* Popup styling */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+    padding: 0 !important;
+  }
+
+  .leaflet-popup-content {
+    margin: 0 !important;
+    min-width: 220px;
+  }
+
+  .popup-inner {
+    padding: 16px 18px;
+  }
+
+  .popup-addr {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1A1A2E;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+  }
+
+  .popup-row:last-child { border-bottom: none; }
+
+  .popup-key {
+    color: #636E72;
+    font-weight: 400;
+  }
+
+  .popup-val {
+    color: #2D3436;
+    font-weight: 600;
+    text-align: right;
+    max-width: 150px;
+  }
+
+  .popup-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .map-header { padding: 10px 14px; flex-direction: column; gap: 4px; }
+    .map-header h1 { font-size: 15px; }
+    .header-stats { gap: 12px; }
+    .header-source { max-width: 100%; }
+    .legend-container { bottom: 12px; left: 12px; max-width: 240px; padding: 12px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="map-header">
+  <div style="display:flex;align-items:baseline;">
+    <h1>Oslo kommunes tomme eiendommer</h1>
+    <span class="subtitle">Kartlegging per desember 2025</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:20px;">
+    <div class="header-stats">
+      <div class="stat-item"><strong id="totalCount">0</strong> <span id="countLabel">eiendommer</span></div>
+    </div>
+    <div class="header-source">Kilde: Eiendoms- og byfornyelsesetatens rapportering over Oslo kommunes ledige eiendommer, desember 2025. Produsert av Oslo kommune, Kommunerevisjonen. Kommunegrense: Kartverket.</div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div class="legend-container">
+  <div class="legend-toggle" onclick="toggleLegend()">
+    <h3>Filter</h3>
+    <span class="arrow open">&#9660;</span>
+  </div>
+  <div class="legend-content open" id="legendContent">
+    <div class="legend-section">
+      <div class="legend-section-title">Forvalter</div>
+      <div id="forvalterLegend"></div>
+    </div>
+    <div class="legend-section">
+      <div class="legend-section-title">Tid ledig</div>
+      <div id="varighetLegend"></div>
+    </div>
+    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #eee;font-size:11px;color:#636E72;line-height:1.45;">
+      Form viser forvalter, farge viser tid ledig. Klikk på kategoriene for å filtrere. Klikk på en markør for detaljer. Street View viser det aktuelle stedet, men har ikke dekning overalt. Zoom og panorer med scroll og dra.
+    </div>
+  </div>
+</div>
+
+
+
+<script>
+// ── Data ──
+const geojsonData = {"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"Adresse":"Bergensgata 52","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"12.09.2017"},"geometry":{"type":"Point","coordinates":[10.759649276733398,59.945181257333175]}},
+{"type":"Feature","properties":{"Adresse":"Kierschows gate 9","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"19.01.2023"},"geometry":{"type":"Point","coordinates":[10.7494164,59.9371002]}},
+{"type":"Feature","properties":{"Adresse":"Maurtuveien 11","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Riving","Varighet":"3-5 år","Ledig siden":"13.12.2022"},"geometry":{"type":"Point","coordinates":[10.8495399,59.8286986]}},
+{"type":"Feature","properties":{"Adresse":"Hytte nær Stensrudåsveien 110","Tidligere formål":"Hytte","Forvalter":"Boligbygg","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"06.09.2011"},"geometry":{"type":"Point","coordinates":[10.8658195,59.8192459]}},
+{"type":"Feature","properties":{"Adresse":"Stordamveien 3","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Under avklaring","Varighet":"Over 5 år","Ledig siden":"01.11.2019"},"geometry":{"type":"Point","coordinates":[10.8384747,59.9101563]}},
+{"type":"Feature","properties":{"Adresse":"Tittutveien 11","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Riving","Varighet":"1-3 år","Ledig siden":"15.01.2024"},"geometry":{"type":"Point","coordinates":[10.843754,59.9266628]}},
+{"type":"Feature","properties":{"Adresse":"Trondheimsveien 484","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Salg","Varighet":"1-3 år","Ledig siden":"19.01.2023"},"geometry":{"type":"Point","coordinates":[10.8917967,59.9602567]}},
+{"type":"Feature","properties":{"Adresse":"Årvollveien 9","Tidligere formål":"Bolig","Forvalter":"Boligbygg","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"12.09.2017"},"geometry":{"type":"Point","coordinates":[10.8087771,59.9437335]}},
+{"type":"Feature","properties":{"Adresse":"Brannfjellhyttene","Tidligere formål":"Hytte","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Beholdes for utleie","Varighet":"3-5 år","Ledig siden":"Siste fraflyttet oktober 2022"},"geometry":{"type":"Point","coordinates":[10.7871243,59.8899656]}},
+{"type":"Feature","properties":{"Adresse":"Håøya, Frogn kommune","Tidligere formål":"Fritidsbolig","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"2020"},"geometry":{"type":"Point","coordinates":[10.5636478,59.7018028]}},
+{"type":"Feature","properties":{"Adresse":"Ingierstrandveien 30","Tidligere formål":"Gatekjøkken","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Rehabilitering","Varighet":"3-5 år","Ledig siden":"2021"},"geometry":{"type":"Point","coordinates":[10.7488127,59.8179968]}},
+{"type":"Feature","properties":{"Adresse":"Larsbu i Lillomarka","Tidligere formål":"Hytte","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Utleie","Varighet":"Over 5 år","Ledig siden":"31.12.2014"},"geometry":{"type":"Point","coordinates":[10.8648508,60.0004077]}},
+{"type":"Feature","properties":{"Adresse":"Lindøysund, badehus","Tidligere formål":"Lager/badehus","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"17.07.1905"},"geometry":{"type":"Point","coordinates":[10.7250607,59.8940729]}},
+{"type":"Feature","properties":{"Adresse":"Enga Ellingsrud","Tidligere formål":"Hytte","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"31.12.2008"},"geometry":{"type":"Point","coordinates":[10.9177443,59.9220306]}},
+{"type":"Feature","properties":{"Adresse":"Sandermosveien 11","Tidligere formål":"Bolig","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Salg","Varighet":"3-5 år","Ledig siden":"Vinter 2022"},"geometry":{"type":"Point","coordinates":[10.7921106,60.0185297]}},
+{"type":"Feature","properties":{"Adresse":"Kafé Utsikten","Tidligere formål":"Servering","Forvalter":"Bymiljøetaten","Anbefalt tiltak":"Under avklaring","Varighet":"Over 5 år","Ledig siden":"31.12.2008"},"geometry":{"type":"Point","coordinates":[10.7609461,59.8944516]}},
+{"type":"Feature","properties":{"Adresse":"4 krutthus på Hovedøya","Tidligere formål":"Anlegg","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"Ledig siden før 2005"},"geometry":{"type":"Point","coordinates":[10.7281315,59.8974652]}},
+{"type":"Feature","properties":{"Adresse":"Enebakkveien 609","Tidligere formål":"Bolig","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Salg","Varighet":"Under 1 år","Ledig siden":"31.03.2025"},"geometry":{"type":"Point","coordinates":[10.8978057,59.8172654]}},
+{"type":"Feature","properties":{"Adresse":"Ingierstrand restaurant","Tidligere formål":"Sommerrestaurant","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Utleie","Varighet":"Under 1 år","Ledig siden":"12.06.2025"},"geometry":{"type":"Point","coordinates":[10.7484631,59.8167246]}},
+{"type":"Feature","properties":{"Adresse":"Holmenkollen leir","Tidligere formål":"Anlegg","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Under avklaring","Varighet":"Over 5 år","Ledig siden":"01.10.2007"},"geometry":{"type":"Point","coordinates":[10.663815,59.9640963]}},
+{"type":"Feature","properties":{"Adresse":"Langliveien 262/264","Tidligere formål":"Bolig","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"30.06.2018"},"geometry":{"type":"Point","coordinates":[10.596732,60.0369894]}},
+{"type":"Feature","properties":{"Adresse":"Romsås senter 7B","Tidligere formål":"Barnehage","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Salg","Varighet":"3-5 år","Ledig siden":"3. kvartal 2022"},"geometry":{"type":"Point","coordinates":[10.8929896,59.9620676]}},
+{"type":"Feature","properties":{"Adresse":"Sognsveien 82","Tidligere formål":"Hytte","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Reguleres","Varighet":"Over 5 år","Ledig siden":"Siden før 2005"},"geometry":{"type":"Point","coordinates":[10.7267352,59.9522132]}},
+{"type":"Feature","properties":{"Adresse":"Store Li gård","Tidligere formål":"Gårdsbruk","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Under avklaring","Varighet":"Under 1 år","Ledig siden":"05.02.2025"},"geometry":{"type":"Point","coordinates":[10.8469288,59.8369441]}},
+{"type":"Feature","properties":{"Adresse":"Hukodden strandrestaurant","Tidligere formål":"Servering","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"31.12.2018"},"geometry":{"type":"Point","coordinates":[10.6744414,59.8950827]}},
+{"type":"Feature","properties":{"Adresse":"Verkensveien 13 Dikemark","Tidligere formål":"Bolig","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"30.06.2020"},"geometry":{"type":"Point","coordinates":[10.3660782,59.8032796]}},
+{"type":"Feature","properties":{"Adresse":"Verkensveien 14 Dikemark","Tidligere formål":"Bolig","Forvalter":"Eiendoms- og byfornyelsesetaten","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"30.06.2020"},"geometry":{"type":"Point","coordinates":[10.3728093,59.8018175]}},
+{"type":"Feature","properties":{"Adresse":"Bispegata 16","Tidligere formål":"Anlegg","Forvalter":"Kulturetaten","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"Over 5 år","Ledig siden":"31.12.2016"},"geometry":{"type":"Point","coordinates":[10.7635161,59.9043186]}},
+{"type":"Feature","properties":{"Adresse":"Enebakkveien 395","Tidligere formål":"Aktivitetshus","Forvalter":"Kulturetaten","Anbefalt tiltak":"Salg","Varighet":"Under 1 år","Ledig siden":"01.06.2025"},"geometry":{"type":"Point","coordinates":[10.8415869,59.8355555]}},
+{"type":"Feature","properties":{"Adresse":"Etterstadgata 6","Tidligere formål":"Barnehage","Forvalter":"Kulturetaten","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"01.01.2013"},"geometry":{"type":"Point","coordinates":[10.7917156,59.9093182]}},
+{"type":"Feature","properties":{"Adresse":"Odvar Solbergs vei 83","Tidligere formål":"Arbeidslokaler for kunstnere","Forvalter":"Kulturetaten","Anbefalt tiltak":"Salg","Varighet":"Under 1 år","Ledig siden":"01.07.2025"},"geometry":{"type":"Point","coordinates":[10.8996045,59.9661713]}},
+{"type":"Feature","properties":{"Adresse":"Abildsøveien 47","Tidligere formål":"Bolig","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"01.06.2011"},"geometry":{"type":"Point","coordinates":[10.8199554,59.8812409]}},
+{"type":"Feature","properties":{"Adresse":"Vaktmesterbolig Tonsenhagen skole","Tidligere formål":"Skole","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"01.05.2017"},"geometry":{"type":"Point","coordinates":[10.8293635,59.9463429]}},
+{"type":"Feature","properties":{"Adresse":"Anton Schjøtsgate 13 c","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving/salg","Varighet":"Over 5 år","Ledig siden":"01.08.2015"},"geometry":{"type":"Point","coordinates":[10.73742,59.9310111]}},
+{"type":"Feature","properties":{"Adresse":"Bjerkelundgata 3","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"3-5 år","Ledig siden":"01.07.2022"},"geometry":{"type":"Point","coordinates":[10.7603268,59.9251686]}},
+{"type":"Feature","properties":{"Adresse":"Bryn brannstasjon","Tidligere formål":"Brannstasjon","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"Over 5 år","Ledig siden":"01.04.2019"},"geometry":{"type":"Point","coordinates":[10.8138332,59.9120336]}},
+{"type":"Feature","properties":{"Adresse":"Bølerlia 73C Nøklevann Barnehage","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"01.08.2020"},"geometry":{"type":"Point","coordinates":[10.8461509,59.8777307]}},
+{"type":"Feature","properties":{"Adresse":"Dr. Dedichensvei 28 B","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"Over 5 år","Ledig siden":"15.07.2008"},"geometry":{"type":"Point","coordinates":[10.8649363,59.9224307]}},
+{"type":"Feature","properties":{"Adresse":"Eikelundveien 21","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"3-5 år","Ledig siden":"01.09.2021"},"geometry":{"type":"Point","coordinates":[10.8009258,59.9428432]}},
+{"type":"Feature","properties":{"Adresse":"Enebakkveien 262 Rektorbolig","Tidligere formål":"Skole","Forvalter":"Oslobygg","Anbefalt tiltak":"Utleie","Varighet":"Over 5 år","Ledig siden":"2008"},"geometry":{"type":"Point","coordinates":[10.8252789,59.8808888]}},
+{"type":"Feature","properties":{"Adresse":"Etterstadgata 5","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"Under 1 år","Ledig siden":"01.12.2025"},"geometry":{"type":"Point","coordinates":[10.7911176,59.9094303]}},
+{"type":"Feature","properties":{"Adresse":"Fagertunveien 8f","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Utleie","Varighet":"Under 1 år","Ledig siden":"10.10.2025"},"geometry":{"type":"Point","coordinates":[10.6619704,59.9237621]}},
+{"type":"Feature","properties":{"Adresse":"Geitmyrsveien 20 St. Hanshaugen Barnehage","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Utleie","Varighet":"Over 5 år","Ledig siden":"01.09.2020"},"geometry":{"type":"Point","coordinates":[10.7421455,59.9269896]}},
+{"type":"Feature","properties":{"Adresse":"Grønlihytta","Tidligere formål":"Hytte","Forvalter":"Oslobygg","Anbefalt tiltak":"Beholdes for utleie","Varighet":"Over 5 år","Ledig siden":"2020"},"geometry":{"type":"Point","coordinates":[10.8956713,59.9233936]}},
+{"type":"Feature","properties":{"Adresse":"Rektorbolig Tøyen skole","Tidligere formål":"Skole","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"01.11.2014"},"geometry":{"type":"Point","coordinates":[10.7737211,59.9146953]}},
+{"type":"Feature","properties":{"Adresse":"Hallagerbakken 16 Skovbakken barnepark","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"3-5 år","Ledig siden":"2022"},"geometry":{"type":"Point","coordinates":[10.7954568,59.8388977]}},
+{"type":"Feature","properties":{"Adresse":"Henrik Sørensen vei 34","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"Under 1 år","Ledig siden":"01.07.2025"},"geometry":{"type":"Point","coordinates":[10.9216466,59.9374717]}},
+{"type":"Feature","properties":{"Adresse":"Lille Tøyen Gamle Sykehjem","Tidligere formål":"Sykehjem","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"2010"},"geometry":{"type":"Point","coordinates":[10.7817467,59.9187412]}},
+{"type":"Feature","properties":{"Adresse":"Hovseterveien 20 Steinerskolen","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"Over 5 år","Ledig siden":"2016"},"geometry":{"type":"Point","coordinates":[10.6530249,59.9486697]}},
+{"type":"Feature","properties":{"Adresse":"Kingos gate 12- 14 Ilahjemmet","Tidligere formål":"Sykehjem","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"1-3 år","Ledig siden":"01.09.2024"},"geometry":{"type":"Point","coordinates":[10.7503393,59.9297509]}},
+{"type":"Feature","properties":{"Adresse":"Kjelsåsveien 49c","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"2008"},"geometry":{"type":"Point","coordinates":[10.79382,59.9494645]}},
+{"type":"Feature","properties":{"Adresse":"Kløverveien 5","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Rehabilitering","Varighet":"3-5 år","Ledig siden":"01.01.2021"},"geometry":{"type":"Point","coordinates":[10.7479045,59.9498784]}},
+{"type":"Feature","properties":{"Adresse":"Lindebergåsen 42e","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"3-5 år","Ledig siden":"01.08.2022"},"geometry":{"type":"Point","coordinates":[10.8853235,59.9298948]}},
+{"type":"Feature","properties":{"Adresse":"Lyder Sagens gate 18B","Tidligere formål":"Bolig/institusjon","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"01.10.2024"},"geometry":{"type":"Point","coordinates":[10.7275853,59.9309421]}},
+{"type":"Feature","properties":{"Adresse":"Lyder Sagens gate 20, Stensløkka ressurssenter","Tidligere formål":"Bolig/institusjon","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"01.10.2024"},"geometry":{"type":"Point","coordinates":[10.7282889,59.930876]}},
+{"type":"Feature","properties":{"Adresse":"Madserud Allè Barnepark","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Rehabilitering","Varighet":"3-5 år","Ledig siden":"01.09.2021"},"geometry":{"type":"Point","coordinates":[10.6968733,59.9245295]}},
+{"type":"Feature","properties":{"Adresse":"Malmøykalven 3 bygg","Tidligere formål":"Hytte","Forvalter":"Oslobygg","Anbefalt tiltak":"Utleie","Varighet":"Over 5 år","Ledig siden":"01.10.2011"},"geometry":{"type":"Point","coordinates":[10.7466257,59.8657406]}},
+{"type":"Feature","properties":{"Adresse":"Maurtua gård","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"3-5 år","Ledig siden":"2022"},"geometry":{"type":"Point","coordinates":[10.8517985,59.8209544]}},
+{"type":"Feature","properties":{"Adresse":"Nordåsveien 422","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Beholde","Varighet":"Under 1 år","Ledig siden":"2025"},"geometry":{"type":"Point","coordinates":[10.7856512,59.8260059]}},
+{"type":"Feature","properties":{"Adresse":"Odvar Solbergs vei 224","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Riving","Varighet":"1-3 år","Ledig siden":"01.06.2023"},"geometry":{"type":"Point","coordinates":[10.9027958,59.9714533]}},
+{"type":"Feature","properties":{"Adresse":"Ormsundveien 12","Tidligere formål":"Bolig","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"12.11.2008"},"geometry":{"type":"Point","coordinates":[10.7684599,59.8806799]}},
+{"type":"Feature","properties":{"Adresse":"Oskar Braatens gate 6","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"01.04.2024"},"geometry":{"type":"Point","coordinates":[10.7615552,59.9330241]}},
+{"type":"Feature","properties":{"Adresse":"Osterhaugsgata 20","Tidligere formål":"Bolig","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"01.01.2015"},"geometry":{"type":"Point","coordinates":[10.7520211,59.9176675]}},
+{"type":"Feature","properties":{"Adresse":"Prost Hallingsvei 10","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"3-5 år","Ledig siden":"01.08.2021"},"geometry":{"type":"Point","coordinates":[10.8162838,59.9144432]}},
+{"type":"Feature","properties":{"Adresse":"Riflegata 13","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Få godkjenning for utleie","Varighet":"3-5 år","Ledig siden":"2022"},"geometry":{"type":"Point","coordinates":[10.7646335,59.9412268]}},
+{"type":"Feature","properties":{"Adresse":"Schæffers gate 6 A","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"Under 1 år","Ledig siden":"2025"},"geometry":{"type":"Point","coordinates":[10.7625298,59.9217657]}},
+{"type":"Feature","properties":{"Adresse":"Silurveien 4-6","Tidligere formål":"Sykehjem","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"01.05.2023"},"geometry":{"type":"Point","coordinates":[10.6550239,59.9285066]}},
+{"type":"Feature","properties":{"Adresse":"Smedgata 30 - Villa Enerhaugen","Tidligere formål":"Sykehjem","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"1-3 år","Ledig siden":"30.04.2024"},"geometry":{"type":"Point","coordinates":[10.7697559,59.9133171]}},
+{"type":"Feature","properties":{"Adresse":"Tidligere Sogn vgs.","Tidligere formål":"Anlegg","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"Over 5 år","Ledig siden":"01.01.2014"},"geometry":{"type":"Point","coordinates":[10.7277331,59.9501058]}},
+{"type":"Feature","properties":{"Adresse":"Solhauggata 2A (bruksrett)","Tidligere formål":"Næring","Forvalter":"Oslobygg","Anbefalt tiltak":"Utleie","Varighet":"Under 1 år","Ledig siden":"01.05.2025"},"geometry":{"type":"Point","coordinates":[10.7723481,59.9238121]}},
+{"type":"Feature","properties":{"Adresse":"Solhauggata 2C (bruksrett)","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"Over 5 år","Ledig siden":"01.04.2014"},"geometry":{"type":"Point","coordinates":[10.7725443,59.9237589]}},
+{"type":"Feature","properties":{"Adresse":"Stamhusveien 79 Vaktmesterbolig","Tidligere formål":"Skole","Forvalter":"Oslobygg","Anbefalt tiltak":"Rehabilitering","Varighet":"Over 5 år","Ledig siden":"01.07.2019"},"geometry":{"type":"Point","coordinates":[10.7860228,59.8948419]}},
+{"type":"Feature","properties":{"Adresse":"Storgata 40 - Legevakten","Tidligere formål":"Anlegg","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"1-3 år","Ledig siden":"01.01.2024"},"geometry":{"type":"Point","coordinates":[10.7587566,59.9166418]}},
+{"type":"Feature","properties":{"Adresse":"Storåsveien 35","Tidligere formål":"Aktivitetshus","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"Under 1 år","Ledig siden":"2025"},"geometry":{"type":"Point","coordinates":[10.7975516,59.8427745]}},
+{"type":"Feature","properties":{"Adresse":"Stovnerbakken 187","Tidligere formål":"Bolig","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"3-5 år","Ledig siden":"01.03.2022"},"geometry":{"type":"Point","coordinates":[10.9411494,59.9532682]}},
+{"type":"Feature","properties":{"Adresse":"Tidligere Seterbråten gård","Tidligere formål":"Anlegg","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"3-5 år","Ledig siden":"2022"},"geometry":{"type":"Point","coordinates":[10.8305043,59.8270685]}},
+{"type":"Feature","properties":{"Adresse":"Seksjon i Traktorveien 7","Tidligere formål":"Institusjon","Forvalter":"Oslobygg","Anbefalt tiltak":"Under avklaring","Varighet":"1-3 år","Ledig siden":"01.11.2024"},"geometry":{"type":"Point","coordinates":[10.8116459,59.8986049]}},
+{"type":"Feature","properties":{"Adresse":"Traverveien 10 Tonsenhagen barnehage","Tidligere formål":"Barnehage","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"Over 5 år","Ledig siden":"01.09.2020"},"geometry":{"type":"Point","coordinates":[10.8061668,59.9429097]}},
+{"type":"Feature","properties":{"Adresse":"Ullevålsveien 68- 72, Veterinærhøyskolen","Tidligere formål":"Skole","Forvalter":"Oslobygg","Anbefalt tiltak":"Utredning utenfor OLB","Varighet":"3-5 år","Ledig siden":"01.12.2021"},"geometry":{"type":"Point","coordinates":[10.7374588,59.9326249]}},
+{"type":"Feature","properties":{"Adresse":"Vestlisvingen 88 - kontorer","Tidligere formål":"Kontor","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"1-3 år","Ledig siden":"01.04.2023"},"geometry":{"type":"Point","coordinates":[10.9258724,59.9689472]}},
+{"type":"Feature","properties":{"Adresse":"Waldemar Thranes gate 70","Tidligere formål":"Atelier for kunstnere","Forvalter":"Oslobygg","Anbefalt tiltak":"Salg","Varighet":"1-3 år","Ledig siden":"01.01.2024"},"geometry":{"type":"Point","coordinates":[10.7490287,59.9282838]}}
+]};
+
+// ── Config ──
+const forvalterConfig = {
+  'Oslobygg':                          { shape: 'circle',   color: '#3498DB', label: 'Oslobygg' },
+  'Eiendoms- og byfornyelsesetaten':   { shape: 'square',   color: '#E67E22', label: 'Eiendoms- og byfornyelsesetaten' },
+  'Boligbygg':                         { shape: 'triangle', color: '#27AE60', label: 'Boligbygg' },
+  'Bymiljøetaten':                     { shape: 'diamond',  color: '#8E44AD', label: 'Bymiljøetaten' },
+  'Kulturetaten':                      { shape: 'star',     color: '#C0392B', label: 'Kulturetaten' }
+};
+
+const varighetColors = {
+  'Under 1 år': '#2ECC71',
+  '1-3 år':     '#F1C40F',
+  '3-5 år':     '#E67E22',
+  'Over 5 år':  '#C0392B'
+};
+
+// ── SVG icon generation ──
+function createSvgIcon(shape, fillColor, borderColor, size) {
+  const s = size || 28;
+  const half = s / 2;
+  let path;
+
+  switch(shape) {
+    case 'circle':
+      path = `<circle cx="${half}" cy="${half}" r="${half-3}" fill="${fillColor}" stroke="${borderColor}" stroke-width="2"/>`;
+      break;
+    case 'square':
+      path = `<rect x="3" y="3" width="${s-6}" height="${s-6}" fill="${fillColor}" stroke="${borderColor}" stroke-width="2"/>`;
+      break;
+    case 'triangle':
+      path = `<polygon points="${half},3 ${s-3},${s-3} 3,${s-3}" fill="${fillColor}" stroke="${borderColor}" stroke-width="2"/>`;
+      break;
+    case 'diamond':
+      path = `<polygon points="${half},2 ${s-2},${half} ${half},${s-2} 2,${half}" fill="${fillColor}" stroke="${borderColor}" stroke-width="2"/>`;
+      break;
+    case 'star':
+      const cx = half, cy = half, outerR = half - 2, innerR = (half - 2) * 0.45;
+      let points = [];
+      for (let i = 0; i < 5; i++) {
+        const outerAngle = (i * 72 - 90) * Math.PI / 180;
+        const innerAngle = ((i * 72) + 36 - 90) * Math.PI / 180;
+        points.push(`${cx + outerR * Math.cos(outerAngle)},${cy + outerR * Math.sin(outerAngle)}`);
+        points.push(`${cx + innerR * Math.cos(innerAngle)},${cy + innerR * Math.sin(innerAngle)}`);
+      }
+      path = `<polygon points="${points.join(' ')}" fill="${fillColor}" stroke="${borderColor}" stroke-width="1.5"/>`;
+      break;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 ${s} ${s}">${path}</svg>`;
+}
+
+function createLeafletIcon(shape, fillColor, borderColor) {
+  const size = shape === 'star' ? 26 : 20;
+  const svg = createSvgIcon(shape, fillColor, borderColor, size);
+  const encoded = encodeURIComponent(svg);
+  return L.icon({
+    iconUrl: 'data:image/svg+xml,' + encoded,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
+    popupAnchor: [0, -size/2]
+  });
+}
+
+// ── Map ──
+const map = L.map('map', {
+  zoomControl: true,
+  maxBounds: [[59.65, 10.25], [60.15, 11.1]],
+  maxBoundsViscosity: 0.8
+}).setView([59.92, 10.78], 11);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 18
+}).addTo(map);
+
+// ── Oslo kommunegrense (Kartverket, CC BY 4.0) ──
+const osloBoundary = {"type":"Feature","properties":{"name":"Oslo"},"geometry":{"type":"Polygon","coordinates":[[[10.8563,59.809311],[10.863153,59.812327],[10.869669,59.813216],[10.878657,59.812178],[10.880014,59.811005],[10.882046,59.812535],[10.882861,59.814407],[10.888353,59.81596],[10.891805,59.818224],[10.891816,59.821024],[10.896495,59.821854],[10.896483,59.823778],[10.897715,59.824342],[10.902167,59.825653],[10.910825,59.826046],[10.911649,59.826794],[10.914863,59.826788],[10.917589,59.82789],[10.925093,59.827655],[10.927396,59.826867],[10.933008,59.831324],[10.936609,59.831702],[10.934141,59.835995],[10.931199,59.836843],[10.929683,59.838527],[10.929216,59.840606],[10.926438,59.843182],[10.926479,59.845125],[10.921554,59.852061],[10.91234,59.860106],[10.909349,59.864753],[10.907158,59.869893],[10.909887,59.875279],[10.907628,59.884958],[10.915096,59.91034],[10.914816,59.911619],[10.916384,59.913152],[10.91578,59.913914],[10.917742,59.91968],[10.919631,59.920713],[10.919328,59.921595],[10.921416,59.926475],[10.929034,59.934834],[10.93477,59.938305],[10.945988,59.94317],[10.942265,59.94546],[10.943007,59.94612],[10.942605,59.947039],[10.944998,59.947781],[10.946748,59.947007],[10.947638,59.948033],[10.951389,59.949243],[10.945891,59.952578],[10.944337,59.95321],[10.942621,59.952822],[10.941336,59.954397],[10.940184,59.957888],[10.937477,59.960855],[10.937805,59.961687],[10.936948,59.963004],[10.938075,59.965521],[10.93734,59.970027],[10.932902,59.975418],[10.928976,59.978514],[10.92565,59.983724],[10.917814,59.984525],[10.912677,59.980988],[10.908905,59.980182],[10.893156,59.980826],[10.882666,59.984576],[10.875393,59.985589],[10.87487,59.987683],[10.867864,59.99124],[10.865908,59.995141],[10.857802,59.996202],[10.849278,60.002023],[10.842716,59.999514],[10.84252,59.997143],[10.837689,59.998036],[10.838532,60.001313],[10.837016,60.007009],[10.832878,60.009965],[10.833525,60.01125],[10.832039,60.017801],[10.829213,60.019857],[10.828335,60.022152],[10.826115,60.023335],[10.824059,60.022706],[10.822393,60.020426],[10.822172,60.01791],[10.821145,60.017378],[10.81875,60.018277],[10.815158,60.021169],[10.811706,60.025467],[10.812032,60.027763],[10.813526,60.029335],[10.812408,60.029761],[10.813173,60.031012],[10.812054,60.034346],[10.81464,60.036934],[10.818101,60.037838],[10.816962,60.040546],[10.818048,60.044354],[10.817211,60.047327],[10.81716,60.053189],[10.816373,60.054338],[10.819631,60.064715],[10.813549,60.065111],[10.812237,60.064375],[10.807889,60.064314],[10.801219,60.065949],[10.788021,60.067554],[10.785743,60.069097],[10.783698,60.073338],[10.778569,60.077189],[10.779009,60.078314],[10.776985,60.079716],[10.773849,60.085222],[10.772332,60.086591],[10.770254,60.087052],[10.764382,60.09626],[10.762871,60.096619],[10.761731,60.098053],[10.758148,60.098506],[10.75485,60.100247],[10.755933,60.104965],[10.766408,60.111958],[10.768404,60.112185],[10.767656,60.113057],[10.752077,60.11841],[10.751227,60.120812],[10.747962,60.12171],[10.74694,60.123026],[10.743717,60.123326],[10.738689,60.125639],[10.732841,60.125201],[10.731647,60.123658],[10.724403,60.121566],[10.718735,60.12147],[10.716156,60.119667],[10.707263,60.119403],[10.703848,60.12117],[10.704928,60.122866],[10.704472,60.125189],[10.696372,60.125903],[10.694892,60.127226],[10.68032,60.13353],[10.647272,60.13288],[10.618918,60.135106],[10.603949,60.13386],[10.60295,60.132321],[10.572783,60.116785],[10.582811,60.107219],[10.588657,60.100295],[10.592123,60.093942],[10.592859,60.082512],[10.597304,60.07728],[10.580765,60.076238],[10.489165,60.01726],[10.490213,60.01579],[10.504932,60.007811],[10.51807,59.999291],[10.525471,60.000143],[10.528541,59.999321],[10.529684,60.000142],[10.535274,60.000552],[10.543998,59.998039],[10.545443,59.995152],[10.549119,59.993657],[10.555855,59.996727],[10.559482,59.994027],[10.56755,59.991423],[10.572538,59.988211],[10.583703,59.982921],[10.590344,59.97854],[10.590654,59.97717],[10.594169,59.976751],[10.596915,59.977827],[10.602674,59.976691],[10.610456,59.97661],[10.613956,59.974323],[10.618176,59.970512],[10.620517,59.96634],[10.624442,59.964827],[10.623293,59.962923],[10.627579,59.961636],[10.628125,59.960318],[10.631692,59.957315],[10.63093,59.955383],[10.632053,59.953711],[10.633884,59.953421],[10.63405,59.952714],[10.63308,59.952109],[10.634124,59.951674],[10.635615,59.947845],[10.63584,59.945367],[10.633059,59.943053],[10.633416,59.942401],[10.631612,59.939248],[10.635318,59.935787],[10.632205,59.931882],[10.626471,59.929634],[10.627378,59.928212],[10.625432,59.927088],[10.627467,59.925182],[10.625522,59.923871],[10.62569,59.922708],[10.629515,59.921778],[10.630373,59.918166],[10.634228,59.917434],[10.63284,59.916071],[10.633347,59.914442],[10.640048,59.914023],[10.642526,59.910706],[10.647766,59.909408],[10.658082,59.88441],[10.688962,59.875928],[10.731007,59.877179],[10.74402,59.839283],[10.764793,59.829543],[10.770789,59.825109],[10.771553,59.823506],[10.777523,59.82624],[10.789212,59.823429],[10.798445,59.822981],[10.805272,59.82499],[10.812456,59.825362],[10.815098,59.823007],[10.815442,59.820707],[10.81726,59.818129],[10.836014,59.816962],[10.837749,59.816035],[10.845926,59.81688],[10.846216,59.814696],[10.847911,59.811922],[10.8563,59.809311]]]}};
+L.geoJSON(osloBoundary, {
+  style: {
+    color: '#1A1A2E',
+    weight: 2,
+    opacity: 0.45,
+    fillColor: 'transparent',
+    fill: false,
+    dashArray: '6, 4'
+  }
+}).addTo(map);
+
+// ── Kommune for eiendommer utenfor Oslo ──
+const kommuneMap = {
+  'Verkensveien 13 Dikemark': 'Asker kommune',
+  'Verkensveien 14 Dikemark': 'Asker kommune',
+  'Håøya, Frogn kommune': 'Frogn kommune',
+  'Ingierstrandveien 30': 'Nordre Follo kommune',
+  'Ingierstrand restaurant': 'Nordre Follo kommune',
+  'Enebakkveien 609': 'Nordre Follo kommune',
+  'Larsbu i Lillomarka': 'Nittedal kommune',
+};
+
+// ── Add markers ──
+const allMarkers = [];
+
+geojsonData.features.forEach(f => {
+  const p = f.properties;
+  if (!f.geometry) return;
+
+  const fc = forvalterConfig[p.Forvalter] || { shape: 'circle', color: '#999' };
+  const vc = varighetColors[p.Varighet] || '#999';
+  const icon = createLeafletIcon(fc.shape, vc, '#fff');
+
+  const badgeColor = vc;
+  const kommune = kommuneMap[p.Adresse];
+  const kommuneRow = kommune ? `<div class="popup-row"><span class="popup-key">Kommune</span><span class="popup-val">${kommune}</span></div>` : '';
+  const lat = f.geometry.coordinates[1];
+  const lng = f.geometry.coordinates[0];
+  const streetViewLink = `<div style="margin-top:8px;text-align:center;"><a href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}" target="_blank" rel="noopener" style="display:inline-block;padding:5px 12px;background:#4A90D9;color:#fff;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;">Street View ↗</a></div>`;
+  const popup = `
+    <div class="popup-inner">
+      <div class="popup-addr">${p.Adresse}</div>
+      ${kommuneRow}
+      <div class="popup-row"><span class="popup-key">Tidligere formål</span><span class="popup-val">${p['Tidligere formål'] || '–'}</span></div>
+      <div class="popup-row"><span class="popup-key">Forvalter</span><span class="popup-val">${p.Forvalter}</span></div>
+      <div class="popup-row"><span class="popup-key">Ledig siden</span><span class="popup-val">${p['Ledig siden']}</span></div>
+      <div class="popup-row"><span class="popup-key">Tid ledig</span><span class="popup-val"><span class="popup-badge" style="background:${badgeColor}">${p.Varighet}</span></span></div>
+      <div class="popup-row"><span class="popup-key">Anbefalt tiltak</span><span class="popup-val">${p['Anbefalt tiltak']}</span></div>
+      ${streetViewLink}
+    </div>`;
+
+  const coords = [f.geometry.coordinates[1], f.geometry.coordinates[0]];
+  const marker = L.marker(coords, { icon }).bindPopup(popup);
+  marker.featureProps = p;
+  allMarkers.push(marker);
+  marker.addTo(map);
+});
+
+// ── Stats ──
+const totalEiendommer = geojsonData.features.length;
+document.getElementById('totalCount').textContent = totalEiendommer;
+
+function updateCount() {
+  const visible = allMarkers.filter(m => map.hasLayer(m)).length;
+  const countEl = document.getElementById('totalCount');
+  const labelEl = document.getElementById('countLabel');
+  if (visible === totalEiendommer) {
+    countEl.textContent = totalEiendommer;
+    labelEl.textContent = 'eiendommer';
+  } else {
+    countEl.textContent = visible;
+    labelEl.textContent = `av ${totalEiendommer} eiendommer`;
+  }
+}
+
+// ── Legend: Forvalter icons ──
+const forvalterLegendEl = document.getElementById('forvalterLegend');
+Object.entries(forvalterConfig).forEach(([key, cfg]) => {
+  const svgSmall = createSvgIcon(cfg.shape, '#636E72', '#fff', 20);
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.setAttribute('data-forvalter', key);
+  item.innerHTML = `<div class="legend-icon">${svgSmall}</div><span class="legend-label" style="font-weight:700;">${cfg.label}</span>`;
+  item.addEventListener('click', () => toggleForvalterFilter(key));
+  forvalterLegendEl.appendChild(item);
+});
+
+// ── Legend: Varighet items ──
+const varighetLegendEl = document.getElementById('varighetLegend');
+const varighetOrder = ['Under 1 år', '1-3 år', '3-5 år', 'Over 5 år'];
+varighetOrder.forEach(key => {
+  const color = varighetColors[key];
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.setAttribute('data-varighet', key);
+  item.innerHTML = `<div class="legend-icon"><div style="width:16px;height:16px;border-radius:3px;background:${color};"></div></div><span class="legend-label" style="font-weight:600;">${key}</span>`;
+  item.addEventListener('click', () => toggleVarighetFilter(key));
+  varighetLegendEl.appendChild(item);
+});
+
+// ── Legend toggle ──
+function toggleLegend() {
+  const content = document.getElementById('legendContent');
+  const arrow = document.querySelector('.legend-toggle .arrow');
+  content.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+// ── Filter by forvalter ──
+const activeForvalter = new Set(Object.keys(forvalterConfig));
+const activeVarighet = new Set(varighetOrder);
+
+function updateMarkers() {
+  allMarkers.forEach(m => {
+    const show = activeForvalter.has(m.featureProps.Forvalter) && activeVarighet.has(m.featureProps.Varighet);
+    if (show) {
+      if (!map.hasLayer(m)) map.addLayer(m);
+    } else {
+      if (map.hasLayer(m)) map.removeLayer(m);
+    }
+  });
+  updateCount();
+}
+
+function toggleForvalterFilter(forvalter) {
+  if (activeForvalter.has(forvalter)) {
+    activeForvalter.delete(forvalter);
+  } else {
+    activeForvalter.add(forvalter);
+  }
+  updateMarkers();
+  document.querySelectorAll('.legend-item[data-forvalter]').forEach(el => {
+    el.classList.toggle('dimmed', !activeForvalter.has(el.getAttribute('data-forvalter')));
+  });
+}
+
+function toggleVarighetFilter(varighet) {
+  if (activeVarighet.has(varighet)) {
+    activeVarighet.delete(varighet);
+  } else {
+    activeVarighet.add(varighet);
+  }
+  updateMarkers();
+  document.querySelectorAll('.legend-item[data-varighet]').forEach(el => {
+    el.classList.toggle('dimmed', !activeVarighet.has(el.getAttribute('data-varighet')));
+  });
+}
+</script>
+</body>
+</html>
